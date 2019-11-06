@@ -3,7 +3,10 @@ new test project
 
 ## Serverless contact form with AWS Lambda and AWS SES
 
-###### What are we building?
+### Short TL;DR
 * Configure AWS SES
 * Build the API with the Serverless Framework
 * Deploy the API to AWS Lambda
+
+
+### Configure AWS SES
