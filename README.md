@@ -75,10 +75,87 @@ new test project
   ```
   {
     "NODE_ENV":"dev",
-    "EMAIL":"john.doe@mail.com",
+    "EMAIL":"your@email.com",
     "DOMAIN":"*"
   }
   ```
   * While testing you can keep the domain as `'*'`, however, make sure to change this to your actual domain in production. The `EMAIL` field should contain the email you verified with AWS SES.
 
 **5. Write business logic**
+  * With that wrapped up we're requiring the [SES](https://aws.amazon.com/ses/) module, creating the email parameters and sending them with the `.sendMail()` method. At the bottom, we're exporting the function, making sure to make it available in the `serverless.yml`.
+  ```
+  // handler.js
+
+  const aws = require('aws-sdk')
+  const ses = new aws.SES()
+  const myEmail = process.env.EMAIL
+  const myDomain = process.env.DOMAIN
+
+  function generateResponse (code, payload) {
+    return {
+      statusCode: code,
+      headers: {
+        'Access-Control-Allow-Origin': myDomain,
+        'Access-Control-Allow-Headers': 'x-requested-with',
+        'Access-Control-Allow-Credentials': true
+      },
+      body: JSON.stringify(payload)
+    }
+  }
+
+  function generateError (code, err) {
+    console.log(err)
+    return {
+      statusCode: code,
+      headers: {
+        'Access-Control-Allow-Origin': myDomain,
+        'Access-Control-Allow-Headers': 'x-requested-with',
+        'Access-Control-Allow-Credentials': true
+      },
+      body: JSON.stringify(err.message)
+    }
+  }
+
+  function generateEmailParams (body) {
+    const { email, name, content } = JSON.parse(body)
+    console.log(email, name, content)
+    if (!(email && name && content)) {
+      throw new Error('Missing parameters! Make sure to add parameters \'email\', \'name\', \'content\'.')
+    }
+
+    return {
+      Source: myEmail,
+      Destination: { ToAddresses: [myEmail] },
+      ReplyToAddresses: [email],
+      Message: {
+        Body: {
+          Text: {
+            Charset: 'UTF-8',
+            Data: `Message sent from email ${email} by ${name} \nContent: ${content}`
+          }
+        },
+        Subject: {
+          Charset: 'UTF-8',
+          Data: `You received a message from ${myDomain}!`
+        }
+      }
+    }
+  }
+
+  module.exports.send = async (event) => {
+    try {
+      const emailParams = generateEmailParams(event.body)
+      const data = await ses.sendEmail(emailParams).promise()
+      return generateResponse(200, data)
+    } catch (err) {
+      return generateError(500, err)
+    }
+  }
+  ```
+
+### Deploy the API to AWS Lambda
+  * Run command on command line `serverless deploy`.
+  * And you will see **endpoint** get logged to the console. That's where you will be sending your requests.
+
+### Let's move on to the JavaScript.
+  `const url = 'https://{id}.execute-api.{region}.amazonaws.com/{stage}/email/send'` and change the url constant to the API endpoint you deployed above.
